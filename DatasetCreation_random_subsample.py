@@ -413,21 +413,10 @@ tile_size = 1000
 # load image names from within dataset directory
 file_names = load_image_names(dataset_directory)
 
-# use the functions above to do work!
-# for file in file_names:
-#     image = cv.imread(file,cv.IMREAD_UNCHANGED)
-#     centers = get_subsampling_coordinates(image, num_samples=num_samples, 
-#                                           tile_size=tile_size)
-#     save_image_slices(image, file, centers)
-
-# # %%
-# file_names = load_image_names(dataset_directory)
-# image = cv.imread(file_names[1025],cv.IMREAD_UNCHANGED)
-# centers = get_subsampling_coordinates_classfocused(image)
-# show_tiled_samples(image, centers, tile_size=1000,seg=True)
-
-# %%
-
 contains_names_vascular = Parallel(n_jobs=6, verbose=1)(delayed(joblib_parallel_function_class_focused) \
                                     (name,num_samples=200,tile_size=1000) for name in file_names)
+# %%
+
+double_check_produced_dataset('/media/briancottle/Samsung_T5/sub_sampled_20220531')
+
 # %%
