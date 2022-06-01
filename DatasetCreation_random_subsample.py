@@ -388,9 +388,12 @@ def double_check_produced_dataset(new_directory):
 #############################################################
 
 def joblib_parallel_function_class_focused(file,num_samples=200,tile_size=1000):
+    # load the current image file
     image = cv.imread(file,cv.IMREAD_UNCHANGED)
+    # run either of the get_subsampling_coordinates functions
     centers = get_subsampling_coordinates_classfocused(image, num_samples=num_samples, 
                                           tile_size=tile_size)
+    # save the image segmentations that were found from the previous function
     save_image_slices(image, file, centers)
     return()
 
