@@ -370,15 +370,20 @@ def double_check_produced_dataset(new_directory):
     # this function samples a random image from a given directory, crops off the 
     # ground truth from the 4th layer, and displays the color image to verify
     # they work. 
-
+    os.chdir(new_directory)
     file_names = load_image_names(new_directory)
 
     # pick a random image index number
     image_idx = int(np.random.random()*len(file_names))
 
     tile = cv.imread(file_names[image_idx],cv.IMREAD_UNCHANGED)
+    color_tile = cv.cvtColor(tile[:,:,0:3],cv.COLOR_BGR2RGB)
+    fig, (ax1,ax2) = plt.subplots(1,2)
 
-    plt.imshow(tile)
+    ax1.imshow(color_tile)
+    ax2.imshow(tile[:,:,3])
+    
+    plt.show()
 
 #############################################################
 
