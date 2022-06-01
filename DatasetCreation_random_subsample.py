@@ -376,10 +376,13 @@ def double_check_produced_dataset(new_directory):
     # pick a random image index number
     image_idx = int(np.random.random()*len(file_names))
 
+    # reading specific file from the random index
     tile = cv.imread(file_names[image_idx],cv.IMREAD_UNCHANGED)
+    # changing the color for the tile from BGR to RGB
     color_tile = cv.cvtColor(tile[:,:,0:3],cv.COLOR_BGR2RGB)
     fig, (ax1,ax2) = plt.subplots(1,2)
 
+    # plotting the images next to each other
     ax1.imshow(color_tile)
     ax2.imshow(tile[:,:,3])
     
