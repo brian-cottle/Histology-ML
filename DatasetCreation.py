@@ -55,7 +55,10 @@ def get_bounding_boxes(binary_image):
         width = bounding_box[2]-bounding_box[0]
         height = bounding_box[3]-bounding_box[1]
 
-        # appending to list for storage
+        # note that the below bounding box format is different than the format
+        # that is used in the storage within tfrecord files. The record files
+        # store the x, y, width, and height in their own respective lists, 
+        # instead of having a list of lists.
         bboxes.append([x,y,width,height])
 
     return(bboxes)
