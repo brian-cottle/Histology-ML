@@ -68,7 +68,7 @@ def get_bounding_boxes(binary_image):
 
 def random_center_near_outline(outline, x_bounds, y_bounds, 
                                class_seg=False, 
-                               tile_size = 1000,
+                               tile_size = 1024,
                                sample_center_xy = [0,0]):
     # this function receives a binary outline (in this specific case of a tissue 
     # sample) as well as the x and y limits of that outline. It returns a random
@@ -107,7 +107,7 @@ def random_center_near_outline(outline, x_bounds, y_bounds,
 
 #############################################################
 
-def get_subsampling_coordinates(image, num_samples=50, tile_size=1000, persistence=1000):
+def get_subsampling_coordinates(image, num_samples=50, tile_size=1024, persistence=1000):
     # This function receives an image with segmentations as well as a user 
     # determined number of samples to take from the image (default 50, though 
     # that number usually isn't reached). The size of the tiles sub-sampled as
@@ -186,7 +186,7 @@ def get_subsampling_coordinates(image, num_samples=50, tile_size=1000, persisten
 #############################################################
 
 def get_subsampling_coordinates_classfocused(image,class_id=5,num_samples=10,
-                                             tile_size=1000,
+                                             tile_size=1024,
                                              persistence=1000):
 
 
@@ -267,7 +267,7 @@ def get_subsampling_coordinates_classfocused(image,class_id=5,num_samples=10,
 
 #############################################################
 
-def show_tiled_samples(image, centers, tile_size=1000,seg=False):
+def show_tiled_samples(image, centers, tile_size=1024,seg=False):
     # this function receives an image as well as the centers variable returned 
     # by get_subsampling_coordinates, and creates a visualization of where
     # samples are being taken from the image provided image.
@@ -393,7 +393,7 @@ def double_check_produced_dataset(new_directory):
 
 #############################################################
 
-def joblib_parallel_function_class_focused(file,num_samples=200,tile_size=1000):
+def joblib_parallel_function_class_focused(file,num_samples=200,tile_size=1024):
     # load the current image file
     image = cv.imread(file,cv.IMREAD_UNCHANGED)
     # run either of the get_subsampling_coordinates functions
@@ -414,15 +414,15 @@ os.chdir(dataset_directory)
 
 # %% initializing variables
 num_samples = 200
-tile_size = 1000
+tile_size = 1024
 
 # load image names from within dataset directory
 file_names = load_image_names(dataset_directory)
 
 contains_names_vascular = Parallel(n_jobs=6, verbose=1)(delayed(joblib_parallel_function_class_focused) \
-                                    (name,num_samples=200,tile_size=1000) for name in file_names)
+                                    (name,num_samples=200,tile_size=1024) for name in file_names)
 # %%
 
-double_check_produced_dataset('/media/briancottle/Samsung_T5/sub_sampled_20220531')
+double_check_produced_dataset('/media/briancottle/Samsung_T5/sub_sampled_20220603')
 
 # %%
