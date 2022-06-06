@@ -250,7 +250,7 @@ def parse_tf_elements(element):
 
 # %%
 # writing the files to a new directory!
-dataset_directory = '/media/briancottle/Samsung_T5/sub_sampled_20220531'
+dataset_directory = '/media/briancottle/Samsung_T5/sub_sampled_20220603'
 os.chdir(dataset_directory)
 file_names = load_image_names(dataset_directory)
 num_splits,max_files_per_shard = get_shard_sizes(file_names,500)
