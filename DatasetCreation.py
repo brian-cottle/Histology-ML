@@ -323,7 +323,7 @@ def show_tiled_samples(image, centers, tile_size=1024,seg=False):
 
 #############################################################
 
-def save_image_slices(image, image_name, centers):
+def save_image_slices(image, image_name, centers, class_correction=0):
     # this function receives an image with segmentations, that image's name, and
     # the list of centers that were provided and vetted using 
     # get_subsampling_coordinates. The image is then cropped to create each
@@ -359,7 +359,17 @@ def save_image_slices(image, image_name, centers):
         
         # crop!
         current_crop = image[xmin:xmax,ymin:ymax]
-        
+
+
+        # implementing correcting for a missing or irrelevant class in the
+        # current dataset, for example as written now removes all references
+        # to neural tissue in the segmentation, if you set class_correction = 5
+        if class_correction > 0:
+            seg = current_crop[:,:,3]
+            crop_class_mask = seg==class_correction
+            seg[crop_class_mask] = class_correction - 1
+            current_crop[:,:,3] = seg
+
         # write the file name, appending the sub-sampled number to the original
         cv.imwrite(image_name + f'_subsampled_{idx}.png',current_crop)
 
@@ -400,7 +410,9 @@ def joblib_parallel_function_class_focused(file,num_samples=200,tile_size=1024):
     centers = get_subsampling_coordinates_classfocused(image, num_samples=num_samples, 
                                           tile_size=tile_size)
     # save the image segmentations that were found from the previous function
-    save_image_slices(image, file, centers)
+    # also added class correction for this dataset generation, should be 
+    # changed in the future
+    save_image_slices(image, file, centers,class_correction=5)
     return()
 
 #############################################################
@@ -419,10 +431,12 @@ tile_size = 1024
 # load image names from within dataset directory
 file_names = load_image_names(dataset_directory)
 
+# %%
+# make sure you remove class correction for the next dataset correction if needed!
 contains_names_vascular = Parallel(n_jobs=6, verbose=1)(delayed(joblib_parallel_function_class_focused) \
                                     (name,num_samples=200,tile_size=1024) for name in file_names)
 # %%
 
-double_check_produced_dataset('/media/briancottle/Samsung_T5/sub_sampled_20220603')
+double_check_produced_dataset('/media/briancottle/Samsung_T5/sub_sampled_20220606')
 
 # %%
