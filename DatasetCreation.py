@@ -421,7 +421,7 @@ def joblib_parallel_function_class_focused(file,num_samples=200,tile_size=1024):
 # %% Reading the contents of the dataset directory
 
 # Current directory is on separate hard drive
-dataset_directory = '/media/briancottle/Samsung_T5/ML Dataset'
+dataset_directory = '/media/briancottle/3a7b7bdc-6753-4423-b5ac-ff074ad75013/ML Dataset'
 os.chdir(dataset_directory)
 
 # %% initializing variables
@@ -433,7 +433,7 @@ file_names = load_image_names(dataset_directory)
 
 # %%
 # make sure you remove class correction for the next dataset correction if needed!
-contains_names_vascular = Parallel(n_jobs=6, verbose=1)(delayed(joblib_parallel_function_class_focused) \
+contains_names_vascular = Parallel(n_jobs=8, verbose=5)(delayed(joblib_parallel_function_class_focused) \
                                     (name,num_samples=200,tile_size=1024) for name in file_names)
 # %%
 
