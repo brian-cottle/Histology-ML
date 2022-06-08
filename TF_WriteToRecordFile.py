@@ -250,7 +250,7 @@ def parse_tf_elements(element):
 
 # %%
 # writing the files to a new directory!
-dataset_directory = '/media/briancottle/Samsung_T5/sub_sampled_20220603'
+dataset_directory = '/home/briancottle/Research/Semantic_Segmentation/sub_sampled_20220607'
 os.chdir(dataset_directory)
 file_names = load_image_names(dataset_directory)
 num_splits,max_files_per_shard = get_shard_sizes(file_names,500)
@@ -258,8 +258,8 @@ num_splits,max_files_per_shard = get_shard_sizes(file_names,500)
 write_all_images_to_shards(file_names,num_splits,max_files_per_shard,bbox_id=5)
 
 # %% loading an example shard, and creating the mapped dataset
-os.chdir('/media/briancottle/Samsung_T5/dataset_shards')
-dataset = tf.data.TFRecordDataset('shard_15_of_21.tfrecords')
+os.chdir('/home/briancottle/Research/Semantic_Segmentation/dataset_shards')
+dataset = tf.data.TFRecordDataset('shard_10_of_21.tfrecords')
 dataset = dataset.map(parse_tf_elements)
 # %%
 # double checking some of the examples to make sure it all worked well!
@@ -268,3 +268,8 @@ for sample in dataset.take(2):
     plt.show()
     plt.imshow(sample[1])
     plt.show()
+    print(np.max(sample[1]))
+    print(np.unique(sample[1]))
+
+
+# %%
