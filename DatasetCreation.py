@@ -437,6 +437,6 @@ contains_names_vascular = Parallel(n_jobs=8, verbose=5)(delayed(joblib_parallel_
                                     (name,num_samples=200,tile_size=1024) for name in file_names)
 # %%
 
-double_check_produced_dataset('/media/briancottle/Samsung_T5/sub_sampled_20220606')
+# double_check_produced_dataset('/media/briancottle/Samsung_T5/sub_sampled_20220606')
 
 # %%
