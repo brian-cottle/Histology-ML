@@ -1,8 +1,10 @@
 # %% importing packages
 
+from multiprocessing import reduction
 import numpy as np
 import tensorflow as tf
 from skimage import measure
+import skimage.transform as transform
 import cv2 as cv
 import os
 import tqdm
@@ -38,15 +40,15 @@ def bytes_feature(value):
         value = value.numpy() # get value of tensor
     return tf.train.Feature(bytes_list=tf.train.BytesList(value=[value]))
 
-def parse_image(full_image_seg,bbox):
+def parse_image(full_image,seg,bbox):
 
     data = {
-        'height' : int64_feature(full_image_seg.shape[0]),
-        'width' : int64_feature(full_image_seg.shape[1]),
+        'height' : int64_feature(full_image.shape[0]),
+        'width' : int64_feature(full_image.shape[1]),
         'raw_image' : bytes_feature(
-            tf.io.serialize_tensor(full_image_seg[:,:,0:3])),
+            tf.io.serialize_tensor(full_image)),
         'raw_seg' : bytes_feature(
-            tf.io.serialize_tensor(full_image_seg[:,:,3])),
+            tf.io.serialize_tensor(seg)),
         'bbox_x' : float_feature_list(bbox[0]),
         'bbox_y' : float_feature_list(bbox[1]),
         'bbox_width' : float_feature_list(bbox[2]),
@@ -117,17 +119,39 @@ def load_image_names(folder):
 
 #############################################################
 
-def parse_image_bbox(file_name,bbox_class_id):
+def parse_image_bbox(file_name,bbox_class_id,reduction_size=1):
     # This function receives a name and the class id of which you want to 
     # provide bounding boxes for in the dataset
     image = cv.imread(file_name,cv.IMREAD_UNCHANGED)
+    # separating out the color image
+    color_image = image[:,:,0:3]
+    # downsampling the color image
+    if reduction_size > 1:
+        height = color_image.shape[0]
+        width = color_image.shape[1]
+
+        height2 = int(height/reduction_size)
+        width2 = int(width/reduction_size)
+
+        color_image = cv.resize(color_image,[height2,width2],cv.INTER_AREA)
+
     # getting the segmentation for the bbox production
     seg = image[:,:,3]
+
+    if reduction_size > 1:
+        height = seg.shape[0]
+        width = seg.shape[1]
+
+        height2 = int(height/reduction_size)
+        width2 = int(width/reduction_size)
+
+        seg = cv.resize(seg,[height2,width2],cv.INTER_LINEAR)
+
     # creating the binary image for bboxes
     bbox_seg = seg == bbox_class_id
     bbox = get_bounding_boxes(bbox_seg)
 
-    parsed_image = parse_image(image,bbox)
+    parsed_image = parse_image(color_image,seg,bbox)
 
     return(parsed_image)
 
@@ -153,7 +177,8 @@ def get_shard_sizes(file_names,max_files_per_shard):
 def write_all_images_to_shards(file_names,
                                num_splits,
                                max_files_per_shard,
-                               bbox_id=5):
+                               bbox_id=5,
+                               reduction_size=1):
     # this function receives a list of file names, the number of splits
     # produced by get_shard_sizes, the how many files will be put in each
     # shard, and the class id of which segmentation you want to produce
@@ -188,7 +213,9 @@ def write_all_images_to_shards(file_names,
             if image_idx == len(file_names):
                 break
             # get a parsed image
-            parsed_image = parse_image_bbox(file_names[image_idx],bbox_id)
+            parsed_image = parse_image_bbox(file_names[image_idx],
+                                            bbox_id,
+                                            reduction_size=reduction_size)
 
             # add the current image to the tfrecord file
             writer.write(parsed_image.SerializeToString())
@@ -255,7 +282,11 @@ os.chdir(dataset_directory)
 file_names = load_image_names(dataset_directory)
 num_splits,max_files_per_shard = get_shard_sizes(file_names,500)
 
-write_all_images_to_shards(file_names,num_splits,max_files_per_shard,bbox_id=5)
+write_all_images_to_shards(file_names,
+                           num_splits,
+                           max_files_per_shard,
+                           bbox_id=5,
+                           reduction_size=2)
 
 # %% loading an example shard, and creating the mapped dataset
 os.chdir('/home/briancottle/Research/Semantic_Segmentation/dataset_shards')
@@ -265,6 +296,7 @@ dataset = dataset.map(parse_tf_elements)
 # double checking some of the examples to make sure it all worked well!
 for sample in dataset.take(2):
     plt.imshow(sample[0])
+    print(sample[0].shape)
     plt.show()
     plt.imshow(sample[1])
     plt.show()
