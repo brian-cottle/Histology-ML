@@ -17,8 +17,8 @@ from joblib import Parallel, delayed
 #############################################################
 
 def load_image_names(folder):
-    # This function reads the images within a folder while filtering 
-    # out the weird invisible files that macos includes in their folders
+    '''This function reads the images within a folder while filtering 
+       out the weird invisible files that macos includes in their folders'''
     
     file_list = []
     for file_name in os.listdir(folder):
@@ -33,8 +33,8 @@ def load_image_names(folder):
 #############################################################
 
 def get_bounding_boxes(binary_image):
-    # This function receives a binary image, and returns a list of the
-    # bounding boxes that surround the positive connected components
+    '''This function receives a binary image, and returns a list of the
+       bounding boxes that surround the positive connected components'''
 
     labeled_image = measure.label(binary_image) # labeling image
     regions = measure.regionprops(labeled_image) # getting region props
@@ -66,16 +66,19 @@ def get_bounding_boxes(binary_image):
 
 #############################################################
 
-def random_center_near_outline(outline, x_bounds, y_bounds, 
+def random_center_near_outline(outline,
+                               x_bounds,
+                               y_bounds, 
                                class_seg=False, 
                                tile_size = 1024,
                                sample_center_xy = [0,0]):
-    # this function receives a binary outline (in this specific case of a tissue 
-    # sample) as well as the x and y limits of that outline. It returns a random
-    # x y pair that is within the boundaries of that outline. 
+    '''this function receives a binary outline (in the specific case of a tissue 
+       sample) as well as the x and y limits of that outline. Returns a random
+       x y pair that is within the boundaries of that outline.'''
 
     if not class_seg:
-        # keep iterating until you get a random number fulfilling the requirements    
+        # keep iterating until you get a random number fulfilling the 
+        # requirements    
         while True:
             
             # getting the range of x and y values within which the random number
@@ -84,8 +87,10 @@ def random_center_near_outline(outline, x_bounds, y_bounds,
             max_y_range = y_bounds[1]-y_bounds[0]
             
             # produces a random number between the bounds provided
-            random_x_center = int(np.floor(np.random.random() * max_x_range + x_bounds[0]))
-            random_y_center = int(np.floor(np.random.random() * max_y_range + y_bounds[0]))
+            random_x_center = int(np.floor(np.random.random() * max_x_range + 
+                                  x_bounds[0]))
+            random_y_center = int(np.floor(np.random.random() * max_y_range + 
+                                  y_bounds[0]))
 
             # if the pair generated is within the outine, leave the function
             if outline[random_x_center,random_y_center]:
@@ -99,20 +104,25 @@ def random_center_near_outline(outline, x_bounds, y_bounds,
 
         max_x_range = tile_size - x_width
         max_y_range = tile_size - y_width
-        random_x_center = int(np.floor(np.random.random() * max_x_range + sample_center_xy[0] - max_x_range/2))
-        random_y_center = int(np.floor(np.random.random() * max_y_range + sample_center_xy[1] - max_y_range/2))
+        random_x_center = int(np.floor(np.random.random() * max_x_range + 
+                              sample_center_xy[0] - max_x_range/2))
+        random_y_center = int(np.floor(np.random.random() * max_y_range + 
+                              sample_center_xy[1] - max_y_range/2))
 
 
     return(random_x_center,random_y_center)
 
 #############################################################
 
-def get_subsampling_coordinates(image, num_samples=50, tile_size=1024, persistence=1000):
-    # This function receives an image with segmentations as well as a user 
-    # determined number of samples to take from the image (default 50, though 
-    # that number usually isn't reached). The size of the tiles sub-sampled as
-    # well as how many times the function should try to sample the image 
-    # randomly are also able to be user set. 
+def get_subsampling_coordinates(image, 
+                                num_samples=50,
+                                tile_size=1024,
+                                persistence=1000):
+    '''This function receives an image with segmentations as well as a user 
+       determined number of samples to take from the image (default 50, though 
+       that number usually isn't reached). The size of the tiles sub-sampled as
+       well as how many times the function should try to sample the image 
+       randomly are also able to be user set.'''
 
     # seemingly fastest way to get the inverse of the outline of the image, or 
     # a filled binary segmentation of the tissue.
@@ -185,10 +195,17 @@ def get_subsampling_coordinates(image, num_samples=50, tile_size=1024, persisten
 
 #############################################################
 
-def get_subsampling_coordinates_classfocused(image,class_id=5,num_samples=10,
+def get_subsampling_coordinates_classfocused(image,
+                                             class_id=5,
+                                             num_samples=10,
                                              tile_size=1024,
                                              persistence=1000):
-
+    '''This function receives an image and returns several pseudo-random 
+       tile centers that include an instance or object that is classified as
+       the class "class_id". The persistence is the number of times the function
+       will "draw" a random location within the boundaries of the tissue in an 
+       attempt to place a random tile somewhere that includes the target 
+       class.'''
 
     # seemingly fastest way to get the inverse of the outline of the image, or 
     # a filled binary segmentation of the tissue.
@@ -215,17 +232,22 @@ def get_subsampling_coordinates_classfocused(image,class_id=5,num_samples=10,
     for idx in range(persistence):
         for box in bboxes:
 
-            # getting the min and max that should still contain the full bounding
+            # getting the min and max that still contain the full bounding
             # box for the segmentation
-            x_min_max = [int(box[0]-np.floor(box[2]/2)),int(box[0]+np.floor(box[2]/2))]
-            y_min_max = [int(box[1]-np.floor(box[3]/2)),int(box[1]+np.floor(box[3]/2))]
+            x_min_max = [int(box[0]-np.floor(box[2]/2)),
+                         int(box[0]+np.floor(box[2]/2))]
 
-            # retrieve a new random box center, but this time using the "class_seg"
-            # option
-            new_center = random_center_near_outline(segmentation,x_min_max,
-                                                    y_min_max, class_seg=True,
-                                                    tile_size=tile_size,
-                                                    sample_center_xy=[box[0],box[1]])
+            y_min_max = [int(box[1]-np.floor(box[3]/2)),
+                         int(box[1]+np.floor(box[3]/2))]
+
+            # retrieve a new random box center, but this time using the
+            # "class_seg" option
+            new_center = random_center_near_outline(
+                segmentation,x_min_max,
+                y_min_max, class_seg=True,
+                tile_size=tile_size,
+                sample_center_xy=[box[0],box[1]]
+                )
 
             # if this isn't the first random center generated, proceed to center
             # distance checking
@@ -236,20 +258,23 @@ def get_subsampling_coordinates_classfocused(image,class_id=5,num_samples=10,
                 # iterate through all the previously saved random centers
                 for c in random_centers:
                     # currently, the min distance between samples is tile_size, 
-                    # which allows for some overlap, but not very much in practice
+                    # which allows for some overlap, but not very much in 
+                    # practice
                     min_distance = tile_size
 
                     # calculate the euclidean norm distance between the current
                     # random center "c" and the potentially new random center
                     euclidean_norm = distance.euclidean(c,new_center)
-                    # if any of the distances between the new center and old ones is
-                    # smaller than min_distance, norm_test=0, which doesn't allow
-                    # that new center to be saved
+
+                    # if any of the distances between the new center and old 
+                    # ones is smaller than min_distance, norm_test=0, which 
+                    # doesn't allow that new center to be saved
                     if euclidean_norm < min_distance:
                         norm_test = 0
                 
-                # if norm_test made it through all the already saved random centers
-                # without being zero, the center is then added to the list
+                # if norm_test made it through all the already saved random 
+                # centers without being zero, the center is then added to the
+                # list
                 if norm_test:
                     random_centers.append(new_center)
             
@@ -268,9 +293,9 @@ def get_subsampling_coordinates_classfocused(image,class_id=5,num_samples=10,
 #############################################################
 
 def show_tiled_samples(image, centers, tile_size=1024,seg=False):
-    # this function receives an image as well as the centers variable returned 
-    # by get_subsampling_coordinates, and creates a visualization of where
-    # samples are being taken from the image provided image.
+    '''this function receives an image as well as the centers variable returned 
+       by get_subsampling_coordinates, and creates a visualization of where
+       samples are being taken from the image provided image.'''
 
     # extract the centers
     xy_centers = centers[1]
@@ -324,11 +349,11 @@ def show_tiled_samples(image, centers, tile_size=1024,seg=False):
 #############################################################
 
 def save_image_slices(image, image_name, centers, class_correction=0):
-    # this function receives an image with segmentations, that image's name, and
-    # the list of centers that were provided and vetted using 
-    # get_subsampling_coordinates. The image is then cropped to create each
-    # sub sampled image, and they are saved in a new directory in the parent 
-    # folder of the dataset_directory.
+    '''this function receives an image with segmentations, that image's name, 
+       and the list of centers that were provided and vetted using 
+       get_subsampling_coordinates. The image is then cropped to create each
+       sub sampled image, and they are saved in a new directory in the parent 
+       folder of the dataset_directory.'''
 
 
     # extract variables from the centers object
@@ -380,9 +405,9 @@ def save_image_slices(image, image_name, centers, class_correction=0):
 #############################################################
 
 def double_check_produced_dataset(new_directory):
-    # this function samples a random image from a given directory, crops off the 
-    # ground truth from the 4th layer, and displays the color image to verify
-    # they work. 
+    '''this function samples a random image from a given directory, crops off 
+       the ground truth from the 4th layer, and displays the color image to 
+       verify they work.'''
     os.chdir(new_directory)
     file_names = load_image_names(new_directory)
 
@@ -403,16 +428,27 @@ def double_check_produced_dataset(new_directory):
 
 #############################################################
 
-def joblib_parallel_function_class_focused(file,num_samples=200,tile_size=1024):
+def joblib_parallel_function_class_focused(file,
+                                           class_id=5,
+                                           num_samples=200,
+                                           tile_size=1024,
+                                           class_correction=0):
+    
+    '''Put together to run all the necessary functions above in a parallel loop
+       using joblib to create the dataset significantly faster than in 
+       serial.'''
+    
     # load the current image file
     image = cv.imread(file,cv.IMREAD_UNCHANGED)
     # run either of the get_subsampling_coordinates functions
-    centers = get_subsampling_coordinates_classfocused(image, num_samples=num_samples, 
-                                          tile_size=tile_size)
+    centers = get_subsampling_coordinates_classfocused(image,
+                                                       class_id=class_id,
+                                                       num_samples=num_samples, 
+                                                       tile_size=tile_size)
     # save the image segmentations that were found from the previous function
     # also added class correction for this dataset generation, should be 
     # changed in the future
-    save_image_slices(image, file, centers,class_correction=5)
+    save_image_slices(image, file, centers,class_correction)
     return()
 
 #############################################################
@@ -421,7 +457,8 @@ def joblib_parallel_function_class_focused(file,num_samples=200,tile_size=1024):
 # %% Reading the contents of the dataset directory
 
 # Current directory is on separate hard drive
-dataset_directory = '/media/briancottle/3a7b7bdc-6753-4423-b5ac-ff074ad75013/ML Dataset'
+dataset_directory = ('/home/briancottle/Research/'
+                     'Semantic_Segmentation/ML Dataset')
 os.chdir(dataset_directory)
 
 # %% initializing variables
@@ -432,11 +469,17 @@ tile_size = 1024
 file_names = load_image_names(dataset_directory)
 
 # %%
-# make sure you remove class correction for the next dataset correction if needed!
-contains_names_vascular = Parallel(n_jobs=8, verbose=5)(delayed(joblib_parallel_function_class_focused) \
-                                    (name,num_samples=200,tile_size=1024) for name in file_names)
+contains_names_vascular = Parallel(
+    n_jobs=8, verbose=5)(delayed(joblib_parallel_function_class_focused)
+    (name,
+     class_id=4,
+     num_samples=200,
+     tile_size=1024,
+     class_correction=0) for name in file_names
+    )
 # %%
 
-# double_check_produced_dataset('/media/briancottle/Samsung_T5/sub_sampled_20220606')
+double_check_produced_dataset('/home/briancottle/Research/'
+                              'Semantic_Segmentation/sub_sampled_20220615')
 
 # %%
