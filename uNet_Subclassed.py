@@ -426,7 +426,7 @@ train_files, val_files, test_files = file_names[:val_split_idx],\
 # the dataset to repeat() because the batches and epochs are altered from 
 # standard practice to fit on graphics cards and provide more meaningful and 
 # frequent updates to the console.
-training_dataset = get_dataset(train_files,batch_size=15)
+training_dataset = get_dataset(train_files,batch_size=5)
 training_dataset = training_dataset.repeat()
 validation_dataset = get_dataset(val_files,batch_size = 5)
 # testing has a batch size of 1 to facilitate visualization of predictions
@@ -437,11 +437,12 @@ gpus = tf.config.list_logical_devices('GPU')
 with tf.device(gpus[0].name):
     # filter multiplier provided creates largest filter depth of 256 with a 
     # multiplier of 8. 
-    unet = uNet(filter_multiplier=8)
+    sample_data = np.zeros((1,512,512,3)).astype(np.int8)
+    unet = uNet(filter_multiplier=16)
     # build with input image size of 512*512
-    unet.build((None,512,512,3))
+    out = unet(sample_data)
     unet.summary()
-
+# %%
     # running network eagerly because it allows us to use convert a tensor to a
     # numpy array to help with the weighted loss calculation.
     unet.compile(
@@ -478,11 +479,11 @@ early_stopping_cb = tf.keras.callbacks.EarlyStopping(patience=8,
 # setting the number of batches to iterate through each epoch to a value much
 # lower than what it normaly would be so that we can actually see what is going
 # on with the network, as well as have a meaningful early stopping.
-num_steps = 150
+num_steps = 250
 
 # fit the network!
 history = unet.fit(training_dataset,
-                   epochs=20,
+                   epochs=50,
                    steps_per_epoch=num_steps,
                    validation_data=validation_dataset,
                    callbacks=[checkpoint_cb,
@@ -570,8 +571,8 @@ for sample in testing_dataset.take(10):
     plt.show()
 
 # %%
-# select one of the images cycled through above to investigate furtehr
-image_to_investigate = 2
+# select one of the images cycled through above to investigate further
+image_to_investigate = 6
 
 # show the original image
 plt.imshow(images[image_to_investigate])
@@ -591,3 +592,5 @@ plt.show()
 plt.imshow(squeezed_prediction[0,:,:])
 print(np.unique(squeezed_prediction))
 plt.show()
+
+# %%
