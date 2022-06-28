@@ -207,18 +207,6 @@ def get_subsampling_coordinates_classfocused(image,
        attempt to place a random tile somewhere that includes the target 
        class.'''
 
-    # seemingly fastest way to get the inverse of the outline of the image, or 
-    # a filled binary segmentation of the tissue.
-    outline = image[:,:,3] > 1
-    outline_props = measure.regionprops(outline.astype(np.uint8))
-    # retrieving the x and y limits of the outline through the bounding box
-    outline_bbox = outline_props[0].bbox
-
-    # extracting the min and max x and y values for the tissues
-    tissue_x_min_max = [outline_bbox[0],outline_bbox[2]]
-    tissue_y_min_max = [outline_bbox[1],outline_bbox[3]]
-
-
     segmentation = image[:,:,3] == class_id
     bboxes = get_bounding_boxes(segmentation)
 
@@ -288,7 +276,7 @@ def get_subsampling_coordinates_classfocused(image,
 
     # returns tile size as well as the centers, and min and max values as they 
     # are useful to know down the line for further processing
-    return(tile_size, random_centers, tissue_x_min_max, tissue_y_min_max)
+    return(tile_size, random_centers)
 
 #############################################################
 
@@ -458,7 +446,7 @@ def joblib_parallel_function_class_focused(file,
 
 # Current directory is on separate hard drive
 dataset_directory = ('/home/briancottle/Research/'
-                     'Semantic_Segmentation/ML Dataset')
+                     'Semantic_Segmentation/ML Dataset 2')
 os.chdir(dataset_directory)
 
 # %% initializing variables
@@ -472,7 +460,7 @@ file_names = load_image_names(dataset_directory)
 contains_names_vascular = Parallel(
     n_jobs=8, verbose=5)(delayed(joblib_parallel_function_class_focused)
     (name,
-     class_id=4,
+     class_id=2,
      num_samples=200,
      tile_size=1024,
      class_correction=0) for name in file_names
