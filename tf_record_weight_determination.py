@@ -128,11 +128,9 @@ for sample in dataset:
     sum0 = np.sum(ground_truth[0,:,:,0])
     sum1 = np.sum(ground_truth[0,:,:,1])
     sum2 = np.sum(ground_truth[0,:,:,2])
-    sum3 = np.sum(ground_truth[0,:,:,3])
-    sum4 = np.sum(ground_truth[0,:,:,4])
 
     # append the sums to the list
-    percentages.append([sum0,sum1,sum2,sum3,sum4])
+    percentages.append([sum0,sum1,sum2])
     gc.collect()
     tf.keras.backend.clear_session()
 
