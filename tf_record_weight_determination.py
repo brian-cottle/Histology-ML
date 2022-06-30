@@ -140,7 +140,7 @@ for sample in dataset:
 sums = np.asarray(percentages)
 # get the sum of each class divided by the number of pixels in an image. make 
 # sure to change this value if your images are a different size!
-percents = sums/(1024*1024)
+percents = sums/(512*512)
 
 # get the standard deviation of the percentages
 std_dev = np.std(percents,axis=0)
@@ -152,5 +152,23 @@ weights = 1/means
 # put the current weights calculation here for future reference so you don't 
 # have to run this code if you forget it. It takes a while...
 # weights = array([28.78661087,  3.60830475,  1.63037567, 14.44688883])
+# weights for everything else, neural, and vasculature are respectivelt:
+# array([ 1.0759387 , 19.79888597, 49.82279793])
+# %%
+# creating new percentages that include everything not in the classes for neural 
+# and vasculature.
+new_percentages = []
+for percent in percents:
+    # "everything else" class is whatever isn't neural, and vasculature
+    tissue_percent = 1 - percent[1] - percent[0]
+    new_percentages.append([tissue_percent,percent[0],percent[1]])
+
+# get the standard deviation of the new percentages
+std_dev = np.std(new_percentages,axis=0)
+# get the mean of the percentages
+means = np.mean(new_percentages,axis=0)
+# produce the weights as the inverse of the new percentages, accounting for 
+# a class of all zeros that doesn't have a sum (/inf error)
+weights = 1/means
 
 # %%
