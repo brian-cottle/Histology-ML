@@ -8,6 +8,8 @@ from tensorflow import keras
 from tensorflow.python.keras import layers
 from skimage import measure
 import cv2 as cv
+import time
+from joblib import Parallel, delayed
 
 import tqdm
 import matplotlib.pyplot as plt
@@ -54,7 +56,7 @@ def parse_tf_elements(element):
     image = tf.reshape(image,shape=[height,width,3])
     segmentation = tf.io.parse_tensor(raw_seg, out_type=tf.uint8)
     segmentation = tf.reshape(segmentation,shape=[height,width,1])
-    one_hot_seg = tf.one_hot(tf.squeeze(segmentation-1),4,axis=-1)
+    one_hot_seg = tf.one_hot(tf.squeeze(segmentation),3,axis=-1)
 
     # there currently is a bug with returning the bbox, but isn't necessary
     # to fix for creating the initial uNet for segmentation exploration
@@ -105,6 +107,22 @@ def get_dataset(file_names,batch_size):
     return(dataset)
 
 #############################################################
+
+def joblib_parallel_function_class_sums(sample):
+    '''Receives a sample, separates out the ground truth, and sends back 
+       a list of the sums of each class in order.'''
+
+    ground_truth = sample[1]
+    # sum up each class in the dataset for this example
+    sum0 = np.sum(ground_truth[0,:,:,0])
+    sum1 = np.sum(ground_truth[0,:,:,1])
+    sum2 = np.sum(ground_truth[0,:,:,2])
+    try:
+        return([sum0,sum1,sum2])
+    finally:
+        gc.collect()
+        tf.keras.backend.clear_session()
+
 #############################################################
 # %%
 # pick one directory from which to read the dataset shards
@@ -117,11 +135,14 @@ file_names = tf.io.gfile.glob(shard_dataset_directory + "/shard_*_of_*.tfrecords
 # files to a new directory, and then from there perform the analysis.
 dataset = get_dataset(file_names,batch_size=1)
 
-
 # %%
-percentages = []
 
-# iterate through each example in the dataset
+percentages = Parallel(
+    n_jobs=20, verbose=5)(delayed(joblib_parallel_function_class_sums)
+    (sample) for sample in dataset
+    )
+
+# %% iterate through each example in the dataset
 for sample in dataset:
     ground_truth = sample[1]
     # sum up each class in the dataset for this example
