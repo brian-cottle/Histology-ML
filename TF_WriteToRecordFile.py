@@ -145,7 +145,7 @@ def parse_image_bbox(file_name,bbox_class_id,reduction_size=1):
         height2 = int(height/reduction_size)
         width2 = int(width/reduction_size)
 
-        seg = cv.resize(seg,[height2,width2],cv.INTER_LINEAR)
+        seg = cv.resize(seg,[height2,width2],cv.INTER_NEAREST)
 
     # creating the binary image for bboxes
     bbox_seg = seg == bbox_class_id
