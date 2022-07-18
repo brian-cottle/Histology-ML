@@ -388,6 +388,10 @@ def save_image_slices(image,
             seg[crop_class_mask] = class_correction - 1
             current_crop[:,:,3] = seg
 
+        seg = current_crop[:,:,3]
+        seg_zero_mask = seg==0
+        seg[seg_zero_mask] = 1
+
         # write the file name, appending the sub-sampled number to the original
         cv.imwrite(
             image_name[:-4] + 
