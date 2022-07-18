@@ -388,6 +388,7 @@ def save_image_slices(image,
             seg[crop_class_mask] = class_correction - 1
             current_crop[:,:,3] = seg
 
+        # accounting for the a jump in the background to first segmentation
         seg = current_crop[:,:,3]
         seg_zero_mask = seg==0
         seg[seg_zero_mask] = 1
@@ -445,6 +446,8 @@ def joblib_parallel_function_class_focused(file,
     
     # load the current image file
     image = cv.imread(file,cv.IMREAD_UNCHANGED)
+    # pad the image to prevent sections from going outside the image bounds
+    image = cv.copyMakeBorder(image,1000,1000,1000,1000,cv.BORDER_REPLICATE)
     # run either of the get_subsampling_coordinates functions
     centers = get_subsampling_coordinates_classfocused(image,
                                                        class_id=class_id,
