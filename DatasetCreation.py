@@ -336,7 +336,11 @@ def show_tiled_samples(image, centers, tile_size=1024,seg=False):
 
 #############################################################
 
-def save_image_slices(image, image_name, centers, class_correction=0):
+def save_image_slices(image, 
+                      image_name,
+                      centers,
+                      class_correction=0,
+                      class_id=2):
     '''this function receives an image with segmentations, that image's name, 
        and the list of centers that were provided and vetted using 
        get_subsampling_coordinates. The image is then cropped to create each
