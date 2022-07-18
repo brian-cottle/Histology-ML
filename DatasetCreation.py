@@ -405,26 +405,30 @@ def save_image_slices(image,
 
 #############################################################
 
-def double_check_produced_dataset(new_directory):
+def double_check_produced_dataset(new_directory,image_idx=0):
     '''this function samples a random image from a given directory, crops off 
        the ground truth from the 4th layer, and displays the color image to 
        verify they work.'''
     os.chdir(new_directory)
     file_names = load_image_names(new_directory)
-
+    file_names = natsorted(file_names)
     # pick a random image index number
+    if image_idx == 0:
     image_idx = int(np.random.random()*len(file_names))
+    else:
+        pass
 
+    print(image_idx)
     # reading specific file from the random index
     tile = cv.imread(file_names[image_idx],cv.IMREAD_UNCHANGED)
     # changing the color for the tile from BGR to RGB
     color_tile = cv.cvtColor(tile[:,:,0:3],cv.COLOR_BGR2RGB)
     fig, (ax1,ax2) = plt.subplots(1,2)
-
+    print(file_names[image_idx])
     # plotting the images next to each other
     ax1.imshow(color_tile)
-    ax2.imshow(tile[:,:,3])
-    
+    ax2.imshow(tile[:,:,3],vmin=0, vmax=6)
+    print(np.unique(tile[:,:,3]))
     plt.show()
 
 #############################################################
