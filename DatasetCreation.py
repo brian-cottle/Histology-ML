@@ -466,7 +466,7 @@ def joblib_parallel_function_class_focused(file,
 
 # Current directory is on separate hard drive
 dataset_directory = ('/home/briancottle/Research/'
-                     'Semantic_Segmentation/ML Dataset 2')
+                     'Semantic_Segmentation/ML_Dataset_3')
 os.chdir(dataset_directory)
 
 # %% initializing variables
@@ -478,9 +478,17 @@ file_names = load_image_names(dataset_directory)
 
 # %%
 contains_names_vascular = Parallel(
-    n_jobs=8, verbose=5)(delayed(joblib_parallel_function_class_focused)
+    n_jobs=22, verbose=5)(delayed(joblib_parallel_function_class_focused)
     (name,
-     class_id=2,
+     class_id=5,
+     num_samples=200,
+     tile_size=1024,
+     class_correction=0) for name in file_names
+    )
+contains_names_vascular = Parallel(
+    n_jobs=22, verbose=5)(delayed(joblib_parallel_function_class_focused)
+    (name,
+     class_id=6,
      num_samples=200,
      tile_size=1024,
      class_correction=0) for name in file_names
@@ -488,6 +496,7 @@ contains_names_vascular = Parallel(
 # %%
 
 double_check_produced_dataset('/home/briancottle/Research/'
-                              'Semantic_Segmentation/sub_sampled_20220615')
+                              'Semantic_Segmentation/sub_sampled_20220715',
+                              image_idx=13955)
 
 # %%
