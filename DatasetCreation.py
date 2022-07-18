@@ -456,7 +456,7 @@ def joblib_parallel_function_class_focused(file,
     # save the image segmentations that were found from the previous function
     # also added class correction for this dataset generation, should be 
     # changed in the future
-    save_image_slices(image, file, centers,class_correction)
+    save_image_slices(image, file, centers,class_correction, class_id=class_id)
     return()
 
 #############################################################
