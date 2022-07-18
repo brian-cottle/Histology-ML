@@ -11,6 +11,7 @@ from skimage import draw
 from scipy.spatial import distance
 import time
 from joblib import Parallel, delayed
+from natsort import natsorted
 
 # %% Defining Functions
 #############################################################
@@ -388,7 +389,11 @@ def save_image_slices(image,
             current_crop[:,:,3] = seg
 
         # write the file name, appending the sub-sampled number to the original
-        cv.imwrite(image_name + f'_subsampled_{idx}.png',current_crop)
+        cv.imwrite(
+            image_name[:-4] + 
+            f'_class_{class_id}_subsampled_{idx}.png',
+            current_crop
+            )
 
     os.chdir(current_dir)
 
