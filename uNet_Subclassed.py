@@ -61,7 +61,7 @@ def parse_tf_elements(element):
     image = tf.reshape(image,shape=[height,width,3])
     segmentation = tf.io.parse_tensor(raw_seg, out_type=tf.uint8)
     segmentation = tf.reshape(segmentation,shape=[height,width,1])
-    one_hot_seg = tf.one_hot(tf.squeeze(segmentation-1),4,axis=-1)
+    one_hot_seg = tf.one_hot(tf.squeeze(segmentation),7,axis=-1)
 
     # there currently is a bug with returning the bbox, but isn't necessary
     # to fix for creating the initial uNet for segmentation exploration
@@ -204,7 +204,7 @@ class DecoderBlock(layers.Layer):
                                    trainable=trainable)
 
         # this creates the output prediction logits layer.
-        self.seg_out = layers.Conv2D(filters=4,
+        self.seg_out = layers.Conv2D(filters=7,
                         kernel_size=(1,1),
                         name='conv_feature_map')
 
@@ -268,10 +268,14 @@ class uNet(keras.Model):
                                            name='Enc4')
         self.encoder_block5 = EncoderBlock(filters=32*filter_multiplier,
                                            name='Enc5')
+        self.encoder_block6 = EncoderBlock(filters=64*filter_multiplier,
+                                           name='Enc6')
 
         # Defining decoder blocks. The names are in reverse order to make it 
         # (hopefully) easier to understand which skip connections are associated
         # with which decoder layers.
+        self.decoder_block5 = DecoderBlock(filters=32*filter_multiplier,
+                                           name='Dec5')
         self.decoder_block4 = DecoderBlock(filters=16*filter_multiplier,
                                            name='Dec4')
         self.decoder_block3 = DecoderBlock(filters=8*filter_multiplier,
@@ -289,12 +293,14 @@ class uNet(keras.Model):
         enc2,enc2_pool = self.encoder_block2(input=enc1_pool,training=training)
         enc3,enc3_pool = self.encoder_block3(input=enc2_pool,training=training)
         enc4,enc4_pool = self.encoder_block4(input=enc3_pool,training=training)
-        enc5 = self.encoder_block5(input=enc4_pool,
+        enc5,enc5_pool = self.encoder_block5(input=enc4_pool,training=training)
+        enc6 = self.encoder_block6(input=enc5_pool,
                                    include_pool=False,
                                    training=training)
 
         # decoder
-        dec4 = self.decoder_block4(input=enc5,skip_conn=enc4,training=training)
+        dec5 = self.decoder_block5(input=enc6,skip_conn=enc5,training=training)
+        dec4 = self.decoder_block4(input=dec5,skip_conn=enc4,training=training)
         dec3 = self.decoder_block3(input=dec4,skip_conn=enc3,training=training)
         dec2 = self.decoder_block2(input=dec3,skip_conn=enc2,training=training)
         seg_logits_out = self.decoder_block1(input=dec2,
@@ -316,7 +322,7 @@ def load_dataset(file_names):
     dataset = tf.data.TFRecordDataset(file_names)
 
     # you can shard the dataset if you like to reduce the size when necessary
-    # dataset = dataset.shard(num_shards=2,index=1)
+    dataset = dataset.shard(num_shards=6,index=1)
     
     # order in the file names doesn't really matter, so ignoring it
     dataset = dataset.with_options(ignore_order)
@@ -338,7 +344,7 @@ def get_dataset(file_names,batch_size):
     
     # creates a shuffle buffer of 1000. Number was arbitrarily chosen, feel free
     # to alter as fits your hardware.
-    dataset = dataset.shuffle(1000)
+    dataset = dataset.shuffle(300)
 
     # adding the batch size to the dataset
     dataset = dataset.batch(batch_size=batch_size)
@@ -361,8 +367,7 @@ def weighted_cce_loss(y_true,y_pred):
        dataset used for training, not the whole dataset.'''
 
     # weights for each class, as background, connective, muscle, and vasculature
-    weights = [28.78661087,3.60830475,1.63037567,14.44688883]
-
+    weights = [1.14605683,0.60551263,0.72870562,88.7457544,15.2938543,37.03763735]
     # create a weight for each of the images in the current batch (because the
     # weighting for categorical crossentropy needs one per input)
     for idx,weight in enumerate(weights):
@@ -404,7 +409,7 @@ if gpus:
 # %% setting up datasets and building model
 
 # directory where the dataset shards are stored
-shard_dataset_directory = '/home/briancottle/Research/Semantic_Segmentation/dataset_shards_ScaleFactor2'
+shard_dataset_directory = '/home/briancottle/Research/Semantic_Segmentation/dataset_shards'
 
 os.chdir(shard_dataset_directory)
 
@@ -412,10 +417,10 @@ os.chdir(shard_dataset_directory)
 file_names = tf.io.gfile.glob(shard_dataset_directory + \
                               "/shard_*_of_*.tfrecords")
 
-# first 70% of names go to the training dataset. Following 20% go to the val
+# first 80% of names go to the training dataset. Following 10% go to the val
 # dataset, followed by last 10% go to the testing dataset.
-val_split_idx = int(0.7*len(file_names))
-test_split_idx = int(0.9*len(file_names))
+val_split_idx = int(0.73*len(file_names))
+test_split_idx = int(0.8*len(file_names))
 
 # separate the file names out
 train_files, val_files, test_files = file_names[:val_split_idx],\
@@ -426,9 +431,9 @@ train_files, val_files, test_files = file_names[:val_split_idx],\
 # the dataset to repeat() because the batches and epochs are altered from 
 # standard practice to fit on graphics cards and provide more meaningful and 
 # frequent updates to the console.
-training_dataset = get_dataset(train_files,batch_size=5)
+training_dataset = get_dataset(train_files,batch_size=3)
 training_dataset = training_dataset.repeat()
-validation_dataset = get_dataset(val_files,batch_size = 5)
+validation_dataset = get_dataset(val_files,batch_size = 1)
 # testing has a batch size of 1 to facilitate visualization of predictions
 testing_dataset = get_dataset(test_files,batch_size=1)
 
@@ -437,8 +442,8 @@ gpus = tf.config.list_logical_devices('GPU')
 with tf.device(gpus[0].name):
     # filter multiplier provided creates largest filter depth of 256 with a 
     # multiplier of 8. 
-    sample_data = np.zeros((1,512,512,3)).astype(np.int8)
-    unet = uNet(filter_multiplier=16)
+    sample_data = np.zeros((1,1024,1024,3)).astype(np.int8)
+    unet = uNet(filter_multiplier=8)
     # build with input image size of 512*512
     out = unet(sample_data)
     unet.summary()
@@ -446,7 +451,7 @@ with tf.device(gpus[0].name):
     # running network eagerly because it allows us to use convert a tensor to a
     # numpy array to help with the weighted loss calculation.
     unet.compile(
-        optimizer=tf.keras.optimizers.Adam(learning_rate=0.0001),
+    optimizer=tf.keras.optimizers.Adam(learning_rate=0.0002),
         loss=weighted_cce_loss,
         run_eagerly=True,
         metrics=[tf.keras.metrics.Precision(name='precision'),
@@ -460,7 +465,7 @@ reduce_lr = tf.keras.callbacks.ReduceLROnPlateau(monitor='val_recall',
                                                  mode='max',
                                                  factor=0.8,
                                                  patience=3,
-                                                 min_lr=0.00001,
+                                                 min_lr=0.000001,
                                                  verbose=True)
 
 checkpoint_cb = tf.keras.callbacks.ModelCheckpoint('unet_seg_subclassed.h5',
@@ -470,7 +475,7 @@ checkpoint_cb = tf.keras.callbacks.ModelCheckpoint('unet_seg_subclassed.h5',
                                                    mode='max',
                                                    verbose=True)
 
-early_stopping_cb = tf.keras.callbacks.EarlyStopping(patience=8,
+early_stopping_cb = tf.keras.callbacks.EarlyStopping(patience=10,
                                                      monitor='val_recall',
                                                      mode='max',
                                                      restore_best_weights=True,
@@ -479,11 +484,11 @@ early_stopping_cb = tf.keras.callbacks.EarlyStopping(patience=8,
 # setting the number of batches to iterate through each epoch to a value much
 # lower than what it normaly would be so that we can actually see what is going
 # on with the network, as well as have a meaningful early stopping.
-num_steps = 250
+num_steps = 180
 
 # fit the network!
 history = unet.fit(training_dataset,
-                   epochs=50,
+                   epochs=70,
                    steps_per_epoch=num_steps,
                    validation_data=validation_dataset,
                    callbacks=[checkpoint_cb,
@@ -497,7 +502,7 @@ history = unet.fit(training_dataset,
 # evaluate the network after loading the weights
 unet.load_weights('./unet_seg_subclassed.h5')
 results = unet.evaluate(testing_dataset)
-
+print(results)
 # %%
 # extracting loss vs epoch
 loss = history.history['loss']
@@ -561,12 +566,12 @@ for sample in testing_dataset.take(10):
     # show the resulting image
     squeezed_gt = tf.argmax(ground_truth,axis=-1)
     squeezed_prediction = tf.argmax(out,axis=-1)
-    plt.imshow(squeezed_gt[0,:,:])
+    plt.imshow(squeezed_gt[0,:,:],vmin=0, vmax=6)
     # print the number of classes in this tile
     print(np.unique(squeezed_gt))
     plt.show()
     # show the flattened predictions
-    plt.imshow(squeezed_prediction[0,:,:])
+    plt.imshow(squeezed_prediction[0,:,:],vmin=0, vmax=6)
     print(np.unique(squeezed_prediction))
     plt.show()
 
