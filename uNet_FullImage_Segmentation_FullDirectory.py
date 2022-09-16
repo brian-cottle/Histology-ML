@@ -424,11 +424,11 @@ unet = uNet(filter_multiplier=16)
 out = unet(sample_data)
 unet.summary()
 
-unet.load_weights('./unet_seg_weights.50-0.41-0.95.h5')
+unet.load_weights('../uNet_Networks (Best 50-0.41-0.95)/unet_seg_weights.50-0.41-0.95.h5')
 
 # %%
 
-JPG_directory = '/var/confocaldata/HumanNodal/HeartData/11/01/JPG/'
+JPG_directory = '/var/confocaldata/HumanNodal/HeartData/08/02/JPG/'
 
 segment_directory(JPG_directory,
                   unet,
@@ -440,7 +440,7 @@ segment_directory(JPG_directory,
 
 # %%
 
-double_check_produced_dataset('/var/confocaldata/HumanNodal/HeartData/10/02/uNet_Segmentations',
+double_check_produced_dataset('/var/confocaldata/HumanNodal/HeartData/08/02/uNet_Segmentations',
                               image_idx=0)
 
 # %%
