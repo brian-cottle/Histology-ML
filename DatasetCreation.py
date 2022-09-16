@@ -207,8 +207,12 @@ def get_subsampling_coordinates_classfocused(image,
        will "draw" a random location within the boundaries of the tissue in an 
        attempt to place a random tile somewhere that includes the target 
        class.'''
-
-    segmentation = image[:,:,3] == class_id
+    try:
+        segmentation = image[:,:,3] == class_id
+    except Exception as e:
+        print(e)
+        print(os.getcwd())
+        print(image.shape)
     bboxes = get_bounding_boxes(segmentation)
 
     # initializing list for the sample box centers 
@@ -358,7 +362,7 @@ def save_image_slices(image,
     os.chdir('./..')
 
     # create directory with the date it was produced
-    new_dir = './sub_sampled_'+time.strftime('%Y%m%d')
+    new_dir = '/home/briancottle/Research/Semantic_Segmentation/sub_sampled_large_'+time.strftime('%Y%m%d')
     if not os.path.isdir(new_dir):
         os.mkdir(new_dir)
 
@@ -394,11 +398,15 @@ def save_image_slices(image,
         seg[seg_zero_mask] = 1
 
         # write the file name, appending the sub-sampled number to the original
-        cv.imwrite(
-            image_name[:-4] + 
-            f'_class_{class_id}_subsampled_{idx}.png',
-            current_crop
-            )
+        try:
+            cv.imwrite(
+                image_name[:-4] + 
+                f'_class_{class_id}_subsampled_{idx}.png',
+                current_crop
+                )
+        except Exception as e:
+            print(e)
+            print(image_name)
 
     os.chdir(current_dir)
 
@@ -415,7 +423,7 @@ def double_check_produced_dataset(new_directory,image_idx=0):
     file_names = natsorted(file_names)
     # pick a random image index number
     if image_idx == 0:
-    image_idx = int(np.random.random()*len(file_names))
+        image_idx = int(np.random.random()*len(file_names))
     else:
         pass
 
@@ -426,11 +434,13 @@ def double_check_produced_dataset(new_directory,image_idx=0):
     color_tile = cv.cvtColor(tile[:,:,0:3],cv.COLOR_BGR2RGB)
     fig, (ax1,ax2) = plt.subplots(1,2)
     print(file_names[image_idx])
+    print(color_tile.shape)
     # plotting the images next to each other
     ax1.imshow(color_tile)
-    ax2.imshow(tile[:,:,3],vmin=0, vmax=6)
+    ax2.imshow(tile[:,:,3],vmin=0, vmax=7)
     print(np.unique(tile[:,:,3]))
     plt.show()
+    return(color_tile,tile[:,:,3])
 
 #############################################################
 
@@ -438,21 +448,35 @@ def joblib_parallel_function_class_focused(file,
                                            class_id=5,
                                            num_samples=200,
                                            tile_size=1024,
-                                           class_correction=0):
+                                           class_correction=0,
+                                           dataset_directory='.'):
     
     '''Put together to run all the necessary functions above in a parallel loop
        using joblib to create the dataset significantly faster than in 
        serial.'''
     
+    os.chdir(dataset_directory)
+
     # load the current image file
-    image = cv.imread(file,cv.IMREAD_UNCHANGED)
+    try:
+        image = cv.imread(file,cv.IMREAD_UNCHANGED)
+    except Exception as e:
+        print(e)
+        print(os.getcwd())
+    
     # pad the image to prevent sections from going outside the image bounds
-    image = cv.copyMakeBorder(image,1000,1000,1000,1000,cv.BORDER_REPLICATE)
+    image = cv.copyMakeBorder(image,3000,3000,3000,3000,cv.BORDER_REPLICATE)
     # run either of the get_subsampling_coordinates functions
-    centers = get_subsampling_coordinates_classfocused(image,
-                                                       class_id=class_id,
-                                                       num_samples=num_samples, 
-                                                       tile_size=tile_size)
+    try:
+        centers = get_subsampling_coordinates_classfocused(image,
+                                                        class_id=class_id,
+                                                        num_samples=num_samples, 
+                                                        tile_size=tile_size)
+    except Exception as e:
+        print(file)
+        print(os.getcwd())
+        print(e)
+        
     # save the image segmentations that were found from the previous function
     # also added class correction for this dataset generation, should be 
     # changed in the future
@@ -465,38 +489,52 @@ def joblib_parallel_function_class_focused(file,
 # %% Reading the contents of the dataset directory
 
 # Current directory is on separate hard drive
-dataset_directory = ('/home/briancottle/Research/'
-                     'Semantic_Segmentation/ML_Dataset_3')
+dataset_directory = ('/home/briancottle/Research/Semantic_Segmentation/ML_Dataset_5')
 os.chdir(dataset_directory)
-
+print(os.getcwd())
 # %% initializing variables
 num_samples = 200
-tile_size = 1024
+tile_size = 4096
 
 # load image names from within dataset directory
 file_names = load_image_names(dataset_directory)
 
 # %%
 contains_names_vascular = Parallel(
-    n_jobs=22, verbose=5)(delayed(joblib_parallel_function_class_focused)
+    n_jobs=7, verbose=5)(delayed(joblib_parallel_function_class_focused)
     (name,
      class_id=5,
      num_samples=200,
-     tile_size=1024,
-     class_correction=0) for name in file_names
+     tile_size=tile_size,
+     class_correction=0,
+     dataset_directory=dataset_directory) for name in file_names
     )
+    # %%
 contains_names_vascular = Parallel(
-    n_jobs=22, verbose=5)(delayed(joblib_parallel_function_class_focused)
+    n_jobs=7, verbose=5)(delayed(joblib_parallel_function_class_focused)
     (name,
      class_id=6,
      num_samples=200,
-     tile_size=1024,
+     tile_size=tile_size,
      class_correction=0) for name in file_names
     )
 # %%
 
-double_check_produced_dataset('/home/briancottle/Research/'
-                              'Semantic_Segmentation/sub_sampled_20220715',
-                              image_idx=13955)
+image,seg = double_check_produced_dataset('/home/briancottle/Research/Semantic_Segmentation/sub_sampled_large_20220916',
+                              image_idx=0)
 
+plt.imshow(seg==7)
+plt.show()
+plt.imshow(seg==6)
+plt.show()
+plt.imshow(seg==5)
+plt.show()
+plt.imshow(seg==4)
+plt.show()
+plt.imshow(seg==3)
+plt.show()
+plt.imshow(seg==2)
+plt.show()
+plt.imshow(seg==1)
+plt.show()
 # %%
