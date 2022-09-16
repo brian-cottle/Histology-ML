@@ -32,6 +32,10 @@ The process of generating the dataset involves a pipeline following these script
 
 2. TF_WriteToRecordFile.py: This script takes the tiled, sparse dataset and saves it into a sharded TFRecord dataset. This was necessary for a variety of reasons. One major reason was that when loading these images from a directory, given their size (roughly 1500px by 1500px), the training would take something close to a couple of days for only a handful of epochs. Using the TFRecords enabled us to reduce this training time from the order of days per epoch to about 5-10 minutes per epoch. 
 
-3. uNet*.py: These files all have purposes for training and using the network. The uNet_Functional.py and uNet_Subclassed.py files contain the same network, I just wanted to prove to myself that I could create the same complicated network using both the functional API and sub-classing a network. the *FullImage_Segmentation.py and *FullImage_Segmentation_FullDirectory.py scripts segment a full image and an entire directory of images, respectively.
+3. uNet*.py: These files all have purposes for training and using the network. The uNet_Functional.py and uNet_Subclassed.py files contain the same network, I just wanted to prove to myself that I could create the same complicated network using both the functional API and sub-classing a network. the *FullImage_Segmentation.py and *FullImage_Segmentation_FullDirectory.py scripts segment a full image and an entire directory of images, respectively. 
+
+Other files provide support but are not necessarily needed to use the network. As this project is still in the development phase, files will come and go, and significant changes to the project structure will be implemented over time.
 
 ## About the contributions
+While I have worked with numerous individuals, research groups, and institutions for this project, all of the code for this aspect of the project (generation of 3D models from histological images) up to this point has been writen by me. As other undergraduate students complete their smaller, senior projects involved in this work their code will be uploaded and attributed.   
+
