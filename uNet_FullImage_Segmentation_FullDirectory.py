@@ -159,7 +159,7 @@ class DecoderBlock(layers.Layer):
                                    trainable=trainable)
 
         # this creates the output prediction logits layer.
-        self.seg_out = layers.Conv2D(filters=6,
+        self.seg_out = layers.Conv2D(filters=7,
                         kernel_size=(1,1),
                         name='conv_feature_map')
 
@@ -344,7 +344,8 @@ def segment_tiles(unet,center_indexes,image,scaling_factor=1,tile_size=1024):
 def segment_directory(JPG_directory,
                       unet,tile_size=2048,
                       tile_distance=512,
-                      scaling_factor=2
+                      scaling_factor=2,
+                      HeartID='0',
                       ):
     os.chdir(JPG_directory)
 
@@ -356,7 +357,7 @@ def segment_directory(JPG_directory,
 
     os.chdir(out_directory)
 
-    file_names = tf.io.gfile.glob(JPG_directory + '*.jpg')
+    file_names = tf.io.gfile.glob(JPG_directory + HeartID + '*.jpg')
 
     for idx,file in enumerate(file_names):
         print(f'segmenting file {idx} of {len(file_names)}')
@@ -370,12 +371,16 @@ def segment_directory(JPG_directory,
                                                     tile_distance=tile_distance,
                                                     tile_size=tile_size
                                                     )
+        try:
 
-        segmentation = segment_tiles(unet,
-                                    center_indexes,
-                                    image,
-                                    scaling_factor=scaling_factor,
-                                    tile_size=tile_size)
+            segmentation = segment_tiles(unet,
+                                        center_indexes,
+                                        image,
+                                        scaling_factor=scaling_factor,
+                                        tile_size=tile_size)
+
+        except Exception as e:
+            print(file)
 
         cv.imwrite(
             file_id + 
@@ -415,32 +420,35 @@ def double_check_produced_dataset(new_directory,image_idx=0):
 #############################################################
 #############################################################
 # %%
-tile_size = 4096
-unet_directory =  '/home/briancottle/Research/Semantic_Segmentation/dataset_shards/'
+tile_size = 1024
+unet_directory =  '/home/briancottle/Research/Semantic_Segmentation/dataset_shards_4/'
 os.chdir(unet_directory)
 
 sample_data = np.zeros((1,1024,1024,3)).astype(np.int8)
-unet = uNet(filter_multiplier=16)
+unet = uNet(filter_multiplier=12)
 out = unet(sample_data)
 unet.summary()
 
-unet.load_weights('../uNet_Networks (Best 50-0.41-0.95)/unet_seg_weights.50-0.41-0.95.h5')
+unet.load_weights('./unet_seg_weights.49-0.52-0.94-0.92.h5')
 
 # %%
 
-JPG_directory = '/var/confocaldata/HumanNodal/HeartData/08/02/JPG/'
+
+
+JPG_directory = '/var/confocaldata/HumanNodal/HeartData/14/01/JPG/'
 
 segment_directory(JPG_directory,
                   unet,
                   tile_size=tile_size,
                   tile_distance=512,
-                  scaling_factor=4
+                  scaling_factor=1,
+                  HeartID='14',
                 )
 
 
 # %%
 
-double_check_produced_dataset('/var/confocaldata/HumanNodal/HeartData/08/02/uNet_Segmentations',
-                              image_idx=0)
+# double_check_produced_dataset('/var/confocaldata/HumanNodal/HeartData/08/02/uNet_Segmentations',
+#                               image_idx=0)
 
 # %%

@@ -159,7 +159,7 @@ class DecoderBlock(layers.Layer):
                                    trainable=trainable)
 
         # this creates the output prediction logits layer.
-        self.seg_out = layers.Conv2D(filters=6,
+        self.seg_out = layers.Conv2D(filters=7,
                         kernel_size=(1,1),
                         name='conv_feature_map')
 
@@ -386,22 +386,22 @@ def double_check_produced_dataset(new_directory,image_idx=0):
 #############################################################
 #############################################################
 # %%
-full_image_directory = '/media/briancottle/Samsung_T5/ML_Dataset_3/'
+full_image_directory = '/media/briancottle/Samsung_T5/ML_Dataset_5/'
 file_names = tf.io.gfile.glob(full_image_directory + '*.png')
 
 # %%
-tile_size = 4096
-unet_directory =  '/home/briancottle/Research/Semantic_Segmentation/dataset_shards'
+tile_size = 1024
+unet_directory =  '/home/briancottle/Research/Semantic_Segmentation/dataset_shards_4'
 os.chdir(unet_directory)
 sample_data = np.zeros((1,1024,1024,3)).astype(np.int8)
-unet = uNet(filter_multiplier=16)
+unet = uNet(filter_multiplier=12)
 out = unet(sample_data)
 unet.summary()
-unet.load_weights('./unet_seg_weights.50-0.41-0.95.h5')
+unet.load_weights('./unet_seg_weights.49-0.52-0.94-0.92.h5')
 
 # %%
 
-image = cv.imread(file_names[1000],cv.IMREAD_UNCHANGED)
+image = cv.imread(file_names[420],cv.IMREAD_UNCHANGED)
 image = cv.copyMakeBorder(image,2000,2000,2000,2000,cv.BORDER_REPLICATE)
 
 # %%
@@ -413,7 +413,7 @@ dimensions,center_indexes = get_image_blocks(image,
 segmentation = segment_tiles(unet,
                              center_indexes,
                              image,
-                             scaling_factor=4,
+                             scaling_factor=1,
                              tile_size=tile_size)
 
 # %%
