@@ -8,6 +8,7 @@ import cv2 as cv
 import os
 import tqdm
 import matplotlib.pyplot as plt
+import random
 
 # %% Citations
 #############################################################
@@ -39,7 +40,7 @@ def bytes_feature(value):
         value = value.numpy() # get value of tensor
     return tf.train.Feature(bytes_list=tf.train.BytesList(value=[value]))
 
-def parse_image(full_image,seg,bbox):
+def parse_image(full_image,seg,bbox,image_name):
 
     data = {
         'height' : int64_feature(full_image.shape[0]),
@@ -51,7 +52,8 @@ def parse_image(full_image,seg,bbox):
         'bbox_x' : float_feature_list(bbox[0]),
         'bbox_y' : float_feature_list(bbox[1]),
         'bbox_width' : float_feature_list(bbox[2]),
-        'bbox_height' : float_feature_list(bbox[3])
+        'bbox_height' : float_feature_list(bbox[3]),
+        'name' : bytes_feature(bytes(image_name, encoding='utf-8')),
     }
 
     parsed_image = tf.train.Example(features=tf.train.Features(feature=data))
@@ -122,37 +124,53 @@ def parse_image_bbox(file_name,bbox_class_id,reduction_size=1):
     # This function receives a name and the class id of which you want to 
     # provide bounding boxes for in the dataset
     image = cv.imread(file_name,cv.IMREAD_UNCHANGED)
-    # separating out the color image
-    color_image = image[:,:,0:3]
-    # downsampling the color image
-    if reduction_size > 1:
-        height = color_image.shape[0]
-        width = color_image.shape[1]
+    passed = False
+    parsed_image = 0
+    if image.shape[0] == image.shape[1]:
+        passed = True
+        # separating out the color image
+        try:
+            color_image = image[:,:,0:3]
+        except Exception as e:
+            print(file_name)
+            print(image.shape)
+            print(e)
+            
+        # downsampling the color image
+        if reduction_size > 1:
+            height = color_image.shape[0]
+            width = color_image.shape[1]
 
-        height2 = int(height/reduction_size)
-        width2 = int(width/reduction_size)
+            height2 = int(height/reduction_size)
+            width2 = int(width/reduction_size)
 
-        color_image = cv.resize(color_image,[height2,width2],cv.INTER_AREA)
+            color_image = cv.resize(color_image,[height2,width2],cv.INTER_AREA)
 
-    # getting the segmentation for the bbox production
-    seg = image[:,:,3]
+        # getting the segmentation for the bbox production, making compensations
+        # for odd segmentations
+        seg = image[:,:,3]
+        # seg[seg==4] = 2
+        # seg[seg==5] = 4
+        # seg[seg==6] = 5
+        # seg[seg==7] = 6
 
-    if reduction_size > 1:
-        height = seg.shape[0]
-        width = seg.shape[1]
+        if reduction_size > 1:
+            height = seg.shape[0]
+            width = seg.shape[1]
 
-        height2 = int(height/reduction_size)
-        width2 = int(width/reduction_size)
+            height2 = int(height/reduction_size)
+            width2 = int(width/reduction_size)
 
-        seg = cv.resize(seg,[height2,width2],cv.INTER_NEAREST)
+            seg = cv.resize(seg,[height2,width2],cv.INTER_NEAREST)
 
-    # creating the binary image for bboxes
-    bbox_seg = seg == bbox_class_id
-    bbox = get_bounding_boxes(bbox_seg)
+        # creating the binary image for bboxes
+        bbox_seg = seg == bbox_class_id
+        bbox = get_bounding_boxes(bbox_seg)
 
-    parsed_image = parse_image(color_image,seg,bbox)
+        parsed_image = parse_image(color_image,seg,bbox,image_name=file_name)
 
-    return(parsed_image)
+    return(parsed_image,passed)
+    
 
 #############################################################
 
@@ -183,7 +201,7 @@ def write_all_images_to_shards(file_names,
     # shard, and the class id of which segmentation you want to produce
     # bounding boxes for. In the future you could easily add the functionality
     # to produce bboxes for both vasculature and neural tissues.
-    out_directory = './../dataset_shards/'
+    out_directory = '/home/briancottle/Research/Semantic_Segmentation/dataset_shards_6/'
 
     # create the directory for saving if it doesn't already exist
     if not os.path.isdir(out_directory):
@@ -212,15 +230,19 @@ def write_all_images_to_shards(file_names,
             if image_idx == len(file_names):
                 break
             # get a parsed image
-            parsed_image = parse_image_bbox(file_names[image_idx],
+            parsed_image,passed = parse_image_bbox(file_names[image_idx],
                                             bbox_id,
                                             reduction_size=reduction_size)
 
             # add the current image to the tfrecord file
-            writer.write(parsed_image.SerializeToString())
+            if passed:
+                writer.write(parsed_image.SerializeToString())
 
-            num_files_this_shard += 1
-            files_written += 1
+                num_files_this_shard += 1
+                files_written += 1
+            else:
+                print(f'{file_names[image_idx]} failed, skipping')
+                num_files_this_shard += 1
 
         writer.close()
     
@@ -230,8 +252,8 @@ def write_all_images_to_shards(file_names,
 #############################################################
 
 def parse_tf_elements(element):
-    # this function is the mapper function for retrieving examples from
-    # the tfrecord
+    '''This function is the mapper function for retrieving examples from the
+       tfrecord'''
 
     # create placeholders for all the features in each example
     data = {
@@ -242,7 +264,8 @@ def parse_tf_elements(element):
         'bbox_x' : tf.io.VarLenFeature(tf.float32),
         'bbox_y' : tf.io.VarLenFeature(tf.float32),
         'bbox_height' : tf.io.VarLenFeature(tf.float32),
-        'bbox_width' : tf.io.VarLenFeature(tf.float32)
+        'bbox_width' : tf.io.VarLenFeature(tf.float32),
+        'name' : tf.io.FixedLenFeature([],tf.string),
     }
 
     # pull out the current example
@@ -253,6 +276,7 @@ def parse_tf_elements(element):
     width = content['width']
     raw_seg = content['raw_seg']
     raw_image = content['raw_image']
+    name = content['name']
     bbox_x = content['bbox_x']
     bbox_y = content['bbox_y']
     bbox_height = content['bbox_height']
@@ -263,44 +287,141 @@ def parse_tf_elements(element):
     image = tf.reshape(image,shape=[height,width,3])
     segmentation = tf.io.parse_tensor(raw_seg, out_type=tf.uint8)
     segmentation = tf.reshape(segmentation,shape=[height,width,1])
+    one_hot_seg = tf.one_hot(tf.squeeze(segmentation),7,axis=-1)
 
     # there currently is a bug with returning the bbox, but isn't necessary
     # to fix for creating the initial uNet for segmentation exploration
     
     # bbox = [bbox_x,bbox_y,bbox_height,bbox_width]
 
-    return(image,segmentation) # 
+    return(image,one_hot_seg,name)
 
 #############################################################
 #############################################################
 
 # %%
 # writing the files to a new directory!
-dataset_directory = '/home/briancottle/Research/Semantic_Segmentation/sub_sampled_large_20220726'
+dataset_directory = '/home/briancottle/Research/Semantic_Segmentation/sub_sampled_20221129'
 os.chdir(dataset_directory)
 file_names = load_image_names(dataset_directory)
-num_splits,max_files_per_shard = get_shard_sizes(file_names,100)
+num_splits,max_files_per_shard = get_shard_sizes(file_names,400)
 
+# %%
 write_all_images_to_shards(file_names,
                            num_splits,
                            max_files_per_shard,
                            bbox_id=5,
-                           reduction_size=2)
+                           reduction_size=1)
 
 # %% loading an example shard, and creating the mapped dataset
-os.chdir('/home/briancottle/Research/Semantic_Segmentation/dataset_shards')
-dataset = tf.data.TFRecordDataset('shard_10_of_30.tfrecords')
+os.chdir('/home/briancottle/Research/Semantic_Segmentation/dataset_shards_6/')
+dataset = tf.data.TFRecordDataset('shard_10_of_102.tfrecords')
 dataset = dataset.map(parse_tf_elements)
-# %%
+# %% 
 # double checking some of the examples to make sure it all worked well!
-for sample in dataset.take(10):
-    plt.imshow(sample[0])
+for sample in dataset.take(100):
+    print(sample[2])
+    plt.imshow(cv.cvtColor(np.asarray(sample[0]),cv.COLOR_BGR2RGB))
     print(sample[0].shape)
     plt.show()
-    plt.imshow(sample[1],vmin=0,vmax=6)
+    seg = tf.argmax(sample[1],axis=-1)
+    plt.imshow(seg,vmin=0,vmax=6)
     plt.show()
-    print(np.max(sample[1]))
-    print(np.unique(sample[1]))
+    print(np.max(seg))
+    print(np.unique(seg))
+    
+
+
+# %% Checking for dud/empty files
+
+for file_name in file_names:
+    image = cv.imread(file_name,cv.IMREAD_UNCHANGED)
+    try:
+        print(image.shape)
+        assert image.shape == (1024,1024,3)
+    except Exception as e:
+        print(e)
+        print(file_name)
+    
+
+
+# %% Further data exploration to ensure proper storage in the record files!
+GT = []
+Images = []
+interested = 12
+count = 0
+for sample in dataset.take(30):
+    if count == interested:
+        GT.append(sample[1])
+        gt = tf.squeeze(sample[1])
+        Images.append(sample[0])
+        # print('layer 7')
+        # plt.imshow(gt[:,:,7])
+        # print(np.sum(gt[:,:,7]))
+        # plt.show()
+        print('layer 6')
+        plt.imshow(gt[:,:,6])
+        print(np.sum(gt[:,:,6]))
+        plt.show()
+        print('layer 5')
+        plt.imshow(gt[:,:,5])
+        print(np.sum(gt[:,:,5]))
+        plt.show()
+        print('layer 4')
+        plt.imshow(gt[:,:,4])
+        print(np.sum(gt[:,:,4]))
+        plt.show()
+        print('layer 3')
+        plt.imshow(gt[:,:,3])
+        print(np.sum(gt[:,:,3]))
+        plt.show()
+        print('layer 2')
+        plt.imshow(gt[:,:,2])
+        print(np.sum(gt[:,:,2]))
+        plt.show()
+        print('layer 1')
+        plt.imshow(gt[:,:,1])
+        print(np.sum(gt[:,:,1]))
+        plt.show()
+        print('layer 0')
+        plt.imshow(gt[:,:,0])
+        print(np.sum(gt[:,:,0]))
+        plt.show()
+    count += 1
+
+# %%
+# directory where the dataset shards are stored
+shard_dataset_directory = '/home/briancottle/Research/Semantic_Segmentation/dataset_shards_6'
+
+os.chdir(shard_dataset_directory)
+if not os.path.isdir('./train'):
+    os.mkdir('./train')
+    os.mkdir('./validate')
+    os.mkdir('./test')
+
+# only get the file names that follow the shard naming convention
+file_names = tf.io.gfile.glob(shard_dataset_directory + \
+                              "/shard_*_of_*.tfrecords")
+
+random.shuffle(file_names)
+
+# first 80% of names go to the training dataset. Following 10% go to the val
+# dataset, followed by last 10% go to the testing dataset.
+val_split_idx = int(0.80*len(file_names))
+test_split_idx = int(0.90*len(file_names))
+
+# separate the file names out
+train_files, val_files, test_files = file_names[:val_split_idx],\
+                                     file_names[val_split_idx:test_split_idx],\
+                                     file_names[test_split_idx:]
+
+
+for sub_dir,files in zip(['/train/shard','/validate/shard','/test/shard'],
+                         [train_files,val_files,test_files]):
+
+    for file_name in files:
+        new_name = file_name.split('/shard')[0] + sub_dir + file_name.split('/shard')[1]
+        os.rename(file_name,new_name)
 
 
 # %%

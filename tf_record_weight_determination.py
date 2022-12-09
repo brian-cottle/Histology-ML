@@ -5,12 +5,12 @@ import os
 os.environ["CUDA_VISIBLE_DEVICES"] = "-1"
 import tensorflow as tf
 from tensorflow import keras
-from tensorflow.python.keras import layers
+from tensorflow.keras import layers
 from skimage import measure
 import cv2 as cv
 import time
 from joblib import Parallel, delayed
-
+from scipy.stats import variation 
 import tqdm
 import matplotlib.pyplot as plt
 import gc
@@ -56,7 +56,7 @@ def parse_tf_elements(element):
     image = tf.reshape(image,shape=[height,width,3])
     segmentation = tf.io.parse_tensor(raw_seg, out_type=tf.uint8)
     segmentation = tf.reshape(segmentation,shape=[height,width,1])
-    one_hot_seg = tf.one_hot(tf.squeeze(segmentation),3,axis=-1)
+    one_hot_seg = tf.one_hot(tf.squeeze(segmentation),7,axis=-1)
 
     # there currently is a bug with returning the bbox, but isn't necessary
     # to fix for creating the initial uNet for segmentation exploration
@@ -99,7 +99,7 @@ def get_dataset(file_names,batch_size):
     
     # creates a shuffle buffer of 1000. Number was arbitrarily chosen, feel free
     # to alter as fits your hardware.
-    dataset = dataset.shuffle(1000)
+    dataset = dataset.shuffle(50)
 
     # adding the batch size to the dataset
     dataset = dataset.batch(batch_size=batch_size)
@@ -111,14 +111,11 @@ def get_dataset(file_names,batch_size):
 def joblib_parallel_function_class_sums(sample):
     '''Receives a sample, separates out the ground truth, and sends back 
        a list of the sums of each class in order.'''
-
-    ground_truth = sample[1]
+    
     # sum up each class in the dataset for this example
-    sum0 = np.sum(ground_truth[0,:,:,0])
-    sum1 = np.sum(ground_truth[0,:,:,1])
-    sum2 = np.sum(ground_truth[0,:,:,2])
+    sum_classes = np.sum(sample,axis=(0,1,2))
     try:
-        return([sum0,sum1,sum2])
+        return(sum_classes)
     finally:
         gc.collect()
         tf.keras.backend.clear_session()
@@ -126,34 +123,47 @@ def joblib_parallel_function_class_sums(sample):
 #############################################################
 # %%
 # pick one directory from which to read the dataset shards
-shard_dataset_directory = '/home/briancottle/Research/Semantic_Segmentation/dataset_shards'
+shard_dataset_directory = '/home/briancottle/Research/Semantic_Segmentation/dataset_shards_6/train'
 os.chdir(shard_dataset_directory)
 file_names = tf.io.gfile.glob(shard_dataset_directory + "/shard_*_of_*.tfrecords")
 
 # retrieve a dataset including all of the files in the directory. To only 
 # include information from a training dataset, you should move specific dataset
 # files to a new directory, and then from there perform the analysis.
-dataset = get_dataset(file_names,batch_size=1)
-
+batch_size = 1
+dataset = get_dataset(file_names,batch_size=batch_size)
+# dataset = dataset.shard(num_shards=10,index=2)
 # %%
 
-percentages = Parallel(
-    n_jobs=20, verbose=5)(delayed(joblib_parallel_function_class_sums)
-    (sample) for sample in dataset
-    )
+# percentages = Parallel(
+#     n_jobs=15, verbose=5, backend='loky')(delayed(joblib_parallel_function_class_sums)
+#     (sample[1]) for sample in dataset
+#     )
 
 # %% iterate through each example in the dataset
+percentages = []
+variances = np.zeros((32400,3))
+all_means = np.zeros((32400,3))
+count = 0
 for sample in dataset:
     ground_truth = sample[1]
+    image = sample[0]
     # sum up each class in the dataset for this example
-    sum0 = np.sum(ground_truth[0,:,:,0])
-    sum1 = np.sum(ground_truth[0,:,:,1])
-    sum2 = np.sum(ground_truth[0,:,:,2])
+    sum_classes = np.sum(ground_truth,axis=(0,1,2))
+
+    all_means[count,:] = [np.mean(image[0,:,:,0]),
+                        np.mean(image[0,:,:,1]),
+                        np.mean(image[0,:,:,2])]
+    
+    variances[count,:] = [np.var(image[0,:,:,0]),
+                      np.var(image[0,:,:,1]),
+                      np.var(image[0,:,:,2])]
 
     # append the sums to the list
-    percentages.append([sum0,sum1,sum2])
+    percentages.append(sum_classes)
     gc.collect()
     tf.keras.backend.clear_session()
+    count += 1
 
 # %%
 
@@ -161,7 +171,7 @@ for sample in dataset:
 sums = np.asarray(percentages)
 # get the sum of each class divided by the number of pixels in an image. make 
 # sure to change this value if your images are a different size!
-percents = sums/(512*512)
+percents = sums/(1024*1024*batch_size)
 
 # get the standard deviation of the percentages
 std_dev = np.std(percents,axis=0)
@@ -169,27 +179,21 @@ std_dev = np.std(percents,axis=0)
 means = np.mean(percents,axis=0)
 # produce the weights as the inverse of the percentages
 weights = 1/means
+print(weights)
 
-# put the current weights calculation here for future reference so you don't 
-# have to run this code if you forget it. It takes a while...
-# weights = array([28.78661087,  3.60830475,  1.63037567, 14.44688883])
-# weights for everything else, neural, and vasculature are respectivelt:
-# array([ 1.0759387 , 19.79888597, 49.82279793])
-# %%
-# creating new percentages that include everything not in the classes for neural 
-# and vasculature.
-new_percentages = []
-for percent in percents:
-    # "everything else" class is whatever isn't neural, and vasculature
-    tissue_percent = 1 - percent[1] - percent[0]
-    new_percentages.append([tissue_percent,percent[0],percent[1]])
+mean_means = np.mean(np.asarray(all_means),axis=0)
+var_vars = np.var(np.asarray(variances),axis=0)
+print(f'mean of the means is {mean_means}')
+print(f'variance of the variances is {var_vars}')
 
-# get the standard deviation of the new percentages
-std_dev = np.std(new_percentages,axis=0)
-# get the mean of the percentages
-means = np.mean(new_percentages,axis=0)
-# produce the weights as the inverse of the new percentages, accounting for 
-# a class of all zeros that doesn't have a sum (/inf error)
-weights = 1/means
+
+# [         inf   2.72403952   2.81034368   4.36437716  36.66264202
+#  108.40694198  87.39903838] # results with dataset 5
+
+# means and variances with daataset 5
+
+# mean of the means is [232.69476802 204.16933591 211.45184799]
+# variance of the variances is [ 139869.85259648  550311.88980989 1160687.94506812]
+
 
 # %%

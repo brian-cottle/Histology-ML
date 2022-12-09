@@ -30,7 +30,11 @@ plt.rcParams['figure.figsize'] = [50, 150]
 #############################################################
 
 def filter_fun_vasculature(file_name:str):
-    class_id = 'class_5'
+    '''I realize this isn't very functional programming, but this function
+    is paired with the "filter_fun_nerves" function for filtering file names
+    according to the class for which the tile was selected using the 
+    DatasetCreation.py file'''
+    class_id = 'vasc_seg'
     
     if class_id in file_name:
         return(True)
@@ -40,7 +44,9 @@ def filter_fun_vasculature(file_name:str):
 #############################################################
 
 def filter_fun_nerves(file_name:str):
-    class_id = 'class_6'
+    '''Performs filtering of file names according to the class for which the
+    tile was selected when using the DatasetCreation.py file'''
+    class_id = 'neural_seg'
     
     if class_id in file_name:
         return(True)
@@ -52,6 +58,11 @@ def filter_fun_nerves(file_name:str):
 
 
 def sample_image_names_from_directory(directory,number_of_samples):
+    '''Randomly selects number_of_samples file names of each of the two 
+    different classes (vasculature and neural) from the sub_sampled
+    dataset created by the DatasetCreation.py script. Returns those file 
+    names.'''
+
     os.chdir(directory)    
     file_names = glob('./*.png')
     
@@ -73,6 +84,11 @@ def sample_image_names_from_directory(directory,number_of_samples):
 #############################################################
 
 def create_segment_outline_image(image_name):
+    '''Uses openCV to create an border for the segmentations of interest in the 
+    image whose file name is provided as an argument. Returns an image with the 
+    vasculature highlighted in red, and the neural tissue highlighted in 
+    green.'''
+
     current_image = cv.imread(image_name,cv.IMREAD_UNCHANGED)
     color = current_image[:,:,0:3]
     # color = cv.cvtColor(color,cv.COLOR_BGR2RGB)
@@ -111,7 +127,10 @@ def create_segment_outline_image(image_name):
 
 #############################################################
 
-def save_images_to_PDF(image_name_list,file_name):
+def save_images_to_PDF(image_name_list,file_name,create_contour = True):
+    '''Uses the above functions to save images sequentially to a PDF for use
+    in validating the segmentations performed. The PDF has space at the bottom
+    for adding check boxes in a separate program such as Adobe Acrobat.'''
 
     pdf = FPDF()
     pdf.set_auto_page_break(False)
@@ -126,20 +145,24 @@ def save_images_to_PDF(image_name_list,file_name):
 
 
     for idx in tqdm.tqdm(range(len(image_name_list))):
+        if create_contour:
+            image_name = image_name_list[idx]
 
-        image_name = image_name_list[idx]
+            contoured_image = create_segment_outline_image(image_name)
+            
+            image_name_split = image_name.split('/')[1].split('.')[0]
+            new_image_name = image_name_split+'_outlined.png'
 
-        contoured_image = create_segment_outline_image(image_name)
-        
-        image_name_split = image_name.split('/')[1].split('.')[0]
-        new_image_name = image_name_split+'_outlined.png'
+            os.chdir(save_directory)
+            cv.imwrite(new_image_name,contoured_image)
 
-        os.chdir(save_directory)
-        cv.imwrite(new_image_name,contoured_image)
-
-        pdf.add_page(format=(310,350))
-        pdf.image(new_image_name,h=300)
-        os.chdir(current_directory)
+            pdf.add_page(format=(610,350))
+            pdf.image(new_image_name,h=300)
+            os.chdir(current_directory)
+        else:
+            image_name = image_name_list[idx]
+            pdf.add_page(format=(610,350))
+            pdf.image(image_name,h=300)
 
     os.chdir(save_directory)
 
@@ -151,8 +174,10 @@ def save_images_to_PDF(image_name_list,file_name):
 #############################################################
 # %%
 
-dataset_directory = '/home/briancottle/Research/Semantic_Segmentation/sub_sampled_large_20220726'
+dataset_directory = '/var/confocaldata/HumanNodal/HeartData/08/01/PDFImages'
 
-filtered_names = sample_image_names_from_directory(dataset_directory,50)
+filtered_names = sample_image_names_from_directory(dataset_directory,20)
 
-save_images_to_PDF(filtered_names,'test_file.pdf')
+save_images_to_PDF(filtered_names,'test_file.pdf',create_contour=False)
+
+# %%

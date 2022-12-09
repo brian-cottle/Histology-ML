@@ -362,7 +362,7 @@ def save_image_slices(image,
     os.chdir('./..')
 
     # create directory with the date it was produced
-    new_dir = '/home/briancottle/Research/Semantic_Segmentation/sub_sampled_large_'+time.strftime('%Y%m%d')
+    new_dir = '/home/briancottle/Research/Semantic_Segmentation/sub_sampled_'+time.strftime('%Y%m%d')
     if not os.path.isdir(new_dir):
         os.mkdir(new_dir)
 
@@ -489,12 +489,12 @@ def joblib_parallel_function_class_focused(file,
 # %% Reading the contents of the dataset directory
 
 # Current directory is on separate hard drive
-dataset_directory = ('/home/briancottle/Research/Semantic_Segmentation/ML_Dataset_5')
+dataset_directory = ('/home/briancottle/Research/Semantic_Segmentation/ML_Dataset_20221115/')
 os.chdir(dataset_directory)
 print(os.getcwd())
 # %% initializing variables
 num_samples = 200
-tile_size = 4096
+tile_size = 1024*2
 
 # load image names from within dataset directory
 file_names = load_image_names(dataset_directory)
@@ -503,7 +503,7 @@ file_names = load_image_names(dataset_directory)
 contains_names_vascular = Parallel(
     n_jobs=7, verbose=5)(delayed(joblib_parallel_function_class_focused)
     (name,
-     class_id=5,
+     class_id=4,
      num_samples=200,
      tile_size=tile_size,
      class_correction=0,
@@ -513,14 +513,14 @@ contains_names_vascular = Parallel(
 contains_names_vascular = Parallel(
     n_jobs=7, verbose=5)(delayed(joblib_parallel_function_class_focused)
     (name,
-     class_id=6,
+     class_id=5,
      num_samples=200,
      tile_size=tile_size,
      class_correction=0) for name in file_names
     )
 # %%
 
-image,seg = double_check_produced_dataset('/home/briancottle/Research/Semantic_Segmentation/sub_sampled_large_20220916',
+image,seg = double_check_produced_dataset('/home/briancottle/Research/Semantic_Segmentation/sub_sampled_20221129',
                               image_idx=0)
 
 plt.imshow(seg==7)
