@@ -81,7 +81,7 @@ def random_center_near_outline(outline,
         # keep iterating until you get a random number fulfilling the 
         # requirements    
         while True:
-            
+
             # getting the range of x and y values within which the random number
             # should be generated
             max_x_range = x_bounds[1]-x_bounds[0]
@@ -147,7 +147,9 @@ def get_subsampling_coordinates(image,
 
     while True:
         # retrieve a new random box center
-        new_center = random_center_near_outline(outline,x_min_max,y_min_max)
+        new_center = random_center_near_outline(outline,
+                                                x_min_max,
+                                                y_min_max)
         
         # if this isn't the first random center generated, proceed to center
         # distance checking
@@ -213,7 +215,14 @@ def get_subsampling_coordinates_classfocused(image,
         print(e)
         print(os.getcwd())
         print(image.shape)
-    bboxes = get_bounding_boxes(segmentation)
+
+    if class_id == 0:
+        bboxes = get_bounding_boxes(np.ones(segmentation.shape))
+        # print(bboxes)
+        # print(segmentation.shape)
+
+    else:
+        bboxes = get_bounding_boxes(segmentation)
 
     # initializing list for the sample box centers 
     random_centers = []
@@ -236,8 +245,10 @@ def get_subsampling_coordinates_classfocused(image,
             # retrieve a new random box center, but this time using the
             # "class_seg" option
             new_center = random_center_near_outline(
-                segmentation,x_min_max,
-                y_min_max, class_seg=True,
+                segmentation,
+                x_min_max,
+                y_min_max,
+                class_seg=True,
                 tile_size=tile_size,
                 sample_center_xy=[box[0],box[1]]
                 )
@@ -281,7 +292,7 @@ def get_subsampling_coordinates_classfocused(image,
 
     # returns tile size as well as the centers, and min and max values as they 
     # are useful to know down the line for further processing
-    return(tile_size, random_centers)
+    return(tile_size, random_centers[:10])
 
 #############################################################
 
@@ -345,7 +356,8 @@ def save_image_slices(image,
                       image_name,
                       centers,
                       class_correction=0,
-                      class_id=2):
+                      class_id=2,
+                      debug=False):
     '''this function receives an image with segmentations, that image's name, 
        and the list of centers that were provided and vetted using 
        get_subsampling_coordinates. The image is then cropped to create each
@@ -494,47 +506,75 @@ os.chdir(dataset_directory)
 print(os.getcwd())
 # %% initializing variables
 num_samples = 200
-tile_size = 1024*2
+tile_size = 1024
 
 # load image names from within dataset directory
 file_names = load_image_names(dataset_directory)
 
+
+# %% test this!
+_ = Parallel(
+    n_jobs=3, verbose=5)(delayed(joblib_parallel_function_class_focused)
+    (name,
+     class_id=0,
+     num_samples=2,
+     tile_size=tile_size,
+     class_correction=0,
+     dataset_directory=dataset_directory) for name in file_names
+    )
+
 # %%
-contains_names_vascular = Parallel(
+_ = Parallel(
     n_jobs=7, verbose=5)(delayed(joblib_parallel_function_class_focused)
     (name,
      class_id=4,
-     num_samples=200,
+     num_samples=num_samples,
      tile_size=tile_size,
      class_correction=0,
      dataset_directory=dataset_directory) for name in file_names
     )
     # %%
-contains_names_vascular = Parallel(
+_ = Parallel(
     n_jobs=7, verbose=5)(delayed(joblib_parallel_function_class_focused)
     (name,
      class_id=5,
-     num_samples=200,
+     num_samples=num_samples,
      tile_size=tile_size,
-     class_correction=0) for name in file_names
+     class_correction=0,
+     dataset_directory=dataset_directory) for name in file_names
     )
 # %%
+
 
 image,seg = double_check_produced_dataset('/home/briancottle/Research/Semantic_Segmentation/sub_sampled_20221129',
                               image_idx=0)
 
-plt.imshow(seg==7)
+
+plt.imshow(seg==6,vmin=0)
 plt.show()
-plt.imshow(seg==6)
+plt.imshow(seg==5,vmin=0)
 plt.show()
-plt.imshow(seg==5)
+plt.imshow(seg==4,vmin=0)
 plt.show()
-plt.imshow(seg==4)
+plt.imshow(seg==3,vmin=0)
 plt.show()
-plt.imshow(seg==3)
+plt.imshow(seg==2,vmin=0)
 plt.show()
-plt.imshow(seg==2)
+plt.imshow(seg==1,vmin=0)
 plt.show()
-plt.imshow(seg==1)
+plt.imshow(seg==0,vmin=0)
 plt.show()
+# %%
+# os.chdir(dataset_directory)
+# image = cv.imread(file_names[0],cv.IMREAD_UNCHANGED)
+
+
+# centers = get_subsampling_coordinates_classfocused(image,
+#                                                         class_id=0,
+#                                                         num_samples=num_samples, 
+#                                                         tile_size=tile_size)
+
+# seg,seg_zero_mask,current_crop = save_image_slices(image, file_names[0], centers,class_correction=0, class_id=0,debug=True)
+
+
 # %%

@@ -315,7 +315,7 @@ write_all_images_to_shards(file_names,
 
 # %% loading an example shard, and creating the mapped dataset
 os.chdir('/home/briancottle/Research/Semantic_Segmentation/dataset_shards_6/')
-dataset = tf.data.TFRecordDataset('shard_10_of_102.tfrecords')
+dataset = tf.data.TFRecordDataset('shard_10_of_128.tfrecords')
 dataset = dataset.map(parse_tf_elements)
 # %% 
 # double checking some of the examples to make sure it all worked well!

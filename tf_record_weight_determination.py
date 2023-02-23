@@ -132,7 +132,7 @@ file_names = tf.io.gfile.glob(shard_dataset_directory + "/shard_*_of_*.tfrecords
 # files to a new directory, and then from there perform the analysis.
 batch_size = 1
 dataset = get_dataset(file_names,batch_size=batch_size)
-# dataset = dataset.shard(num_shards=10,index=2)
+dataset = dataset.shard(num_shards=10,index=2)
 # %%
 
 # percentages = Parallel(
@@ -151,13 +151,13 @@ for sample in dataset:
     # sum up each class in the dataset for this example
     sum_classes = np.sum(ground_truth,axis=(0,1,2))
 
-    all_means[count,:] = [np.mean(image[0,:,:,0]),
-                        np.mean(image[0,:,:,1]),
-                        np.mean(image[0,:,:,2])]
+    # all_means[count,:] = [np.mean(image[0,:,:,0]),
+    #                     np.mean(image[0,:,:,1]),
+    #                     np.mean(image[0,:,:,2])]
     
-    variances[count,:] = [np.var(image[0,:,:,0]),
-                      np.var(image[0,:,:,1]),
-                      np.var(image[0,:,:,2])]
+    # variances[count,:] = [np.var(image[0,:,:,0]),
+    #                   np.var(image[0,:,:,1]),
+    #                   np.var(image[0,:,:,2])]
 
     # append the sums to the list
     percentages.append(sum_classes)
@@ -181,10 +181,21 @@ means = np.mean(percents,axis=0)
 weights = 1/means
 print(weights)
 
-mean_means = np.mean(np.asarray(all_means),axis=0)
-var_vars = np.var(np.asarray(variances),axis=0)
-print(f'mean of the means is {mean_means}')
-print(f'variance of the variances is {var_vars}')
+# mean_means = np.mean(np.asarray(all_means),axis=0)
+# var_vars = np.var(np.asarray(variances),axis=0)
+# print(f'mean of the means is {mean_means}')
+# print(f'variance of the variances is {var_vars}')
+
+
+
+
+# [         inf   2.15248481   3.28798466   5.18559616  46.96594578
+#  130.77512742 105.23678672]
+
+
+# [         inf   2.3971094    3.04084893   4.77029963  39.23478673
+#  118.13505703  96.22377396]
+
 
 
 # [         inf   2.72403952   2.81034368   4.36437716  36.66264202

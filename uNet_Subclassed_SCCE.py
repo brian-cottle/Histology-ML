@@ -78,12 +78,12 @@ def parse_tf_elements(element):
     # Note that the last two are divided by two to prevent them from being over
     # segmented, which they were.
     # [2.72403952, 2.81034368, 4.36437716, 36.66264202, 108.40694198, 87.39903838]
-    weights = [2.72403952*2,
-               2.81034368, 
-               4.36437716, 
-               36.66264202, 
-               108.40694198/2, 
-               87.39903838/2]
+    weights = [2.15248481,
+               3.28798466, 
+               5.18559616, 
+               46.96594578*3, 
+               130.77512742*2, 
+               105.23678672/2]
     weights = np.divide(weights,sum(weights))
     
     # the weights are calculated by the tf_record_weight_determination.py file,
@@ -641,7 +641,7 @@ history = unet.fit(training_dataset,
 
 # %%
 # evaluate the network after loading the weights
-unet.load_weights('unet_seg_weights.77-0.9175-0.0082.h5')
+unet.load_weights('unet_seg_weights.84-0.9163-0.0053.h5')
 results = unet.evaluate(testing_dataset)
 print(results)
 # %%
